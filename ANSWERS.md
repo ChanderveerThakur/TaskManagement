@@ -1,3 +1,7 @@
+
+# username 'chanu' and 123 password
+
+
 part C Database question : select * from user_table order by completed_task_count limit 5;
 
 part D: Permission Classes =[isAuthenticated] is missing and task.object.get(id and user) both should be passed so that user can access only
