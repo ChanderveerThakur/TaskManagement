@@ -1,6 +1,6 @@
-import { useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import api from "../api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -8,77 +8,100 @@ const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // If already logged in, automatically go to dashboard
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
-    setSuccess("");
+    setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://127.0.0.1:8000/api/login/",
-        {
-          username,
-          password
-        },
-        {
-          withCredentials: true
-        }
-      );
+      const response = await api.post("/login/", {
+        username: username.trim(),
+        password,
+      });
 
+      if (response.data?.token) {
+        localStorage.setItem("token", response.data.token);
+      }
       if (response.data?.user) {
         localStorage.setItem("user", JSON.stringify(response.data.user));
       }
-      setSuccess("Login successful!");
-      setTimeout(() => {
-        navigate("/logout");
-      }, 1000);
 
+      navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+      setError(
+        err.response?.data?.message || "Invalid username or password."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: "400px", margin: "40px auto", padding: "20px" }}>
-      <h2>Login</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <p style={{ color: "green" }}>{success}</p>}
+    <div className="auth-page">
+      <div className="glass-card auth-card animate-fade">
+        <div className="auth-header">
+          <div className="brand-icon" style={{ margin: "0 auto", width: "48px", height: "48px" }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+          <h1>Welcome Back</h1>
+          <p>Sign in to access and manage your tasks</p>
+        </div>
 
-      <form onSubmit={handleLogin}>
+        {error && <div className="alert-banner alert-error">{error}</div>}
 
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        />
+        <form onSubmit={handleLogin} className="auth-form">
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              type="text"
+              placeholder="Enter your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoFocus
+            />
+          </div>
 
-        <br />
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: "100%", marginTop: "6px" }}
+            disabled={loading}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
 
-        <br />
-
-        <button type="submit">
-          Login
-        </button>
-
-      </form>
-
-      <p>
-        Don't have an account?{" "}
-        <Link to="/register">
-          Register
-        </Link>
-      </p>
-
+        <div className="auth-footer">
+          Don't have an account?
+          <Link to="/register">Create an account</Link>
+        </div>
+      </div>
     </div>
   );
 };

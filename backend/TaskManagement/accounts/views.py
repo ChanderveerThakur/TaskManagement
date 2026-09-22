@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, login, logout
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 
 
 class RegisterView(APIView):
@@ -33,8 +34,18 @@ class RegisterView(APIView):
             password=password
         )
 
+        token, _ = Token.objects.get_or_create(user=user)
+
         return Response(
-            {"message": "User registered successfully"},
+            {
+                "message": "User registered successfully",
+                "token": token.key,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email
+                }
+            },
             status=status.HTTP_201_CREATED
         )
 
@@ -61,10 +72,12 @@ class LoginView(APIView):
             )
 
         login(request, user)
+        token, _ = Token.objects.get_or_create(user=user)
 
         return Response(
             {
                 "message": "Login successful",
+                "token": token.key,
                 "user": {
                     "id": user.id,
                     "username": user.username,
@@ -80,10 +93,16 @@ class LogoutView(APIView):
     permission_classes = []
 
     def post(self, request):
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Token "):
+            token_key = auth_header.split(" ")[1]
+            Token.objects.filter(key=token_key).delete()
+        elif request.user.is_authenticated:
+            Token.objects.filter(user=request.user).delete()
 
         logout(request)
 
         return Response(
             {"message": "Logout successful"},
             status=status.HTTP_200_OK
-        )
+        )

@@ -39,7 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'rest_framework',
-    'corsheaders'
+    'rest_framework.authtoken',
+    'corsheaders',
+    'Tasks',
 ]
 
 MIDDLEWARE = [
@@ -135,3 +137,11 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'TaskManagement.authentication.CsrfExemptSessionAuthentication',
+    ],
+}
+
