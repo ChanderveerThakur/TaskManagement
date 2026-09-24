@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api from "../api";
+import api, { baseURL } from "../api";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ const Register = () => {
     } catch (err) {
       console.error("Registration request failed:", err);
       if (!err.response) {
-        setError("Network error: Cannot reach the backend API. Please verify your backend service is running and VITE_API_BASE_URL is set.");
+        setError(`Network error: Cannot reach the backend API at "${baseURL}". Please check your VITE_API_BASE_URL setting.`);
       } else {
         setError(
           err.response?.data?.message || err.response?.data?.detail || "Registration failed. Please check your details."
