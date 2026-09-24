@@ -4,11 +4,11 @@
   --bg-card-hover: rgba(26, 34, 54, 0.95);
   --bg-surface: #131b2e;
   --bg-input: #172138;
-  --bg-modal-backdrop: rgba(5, 8, 16, 0.75);
+  --bg-modal-backdrop: rgba(5, 8, 16, 0.8);
 
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-focus: #6366f1;
-  --border-hover: rgba(99, 102, 241, 0.35);
+  --border-hover: rgba(99, 102, 241, 0.4);
 
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
@@ -17,37 +17,37 @@
   --primary: #6366f1;
   --primary-hover: #4f46e5;
   --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --primary-glow: rgba(99, 102, 241, 0.3);
+  --primary-glow: rgba(99, 102, 241, 0.35);
 
   /* Status Colors */
   --status-pending-bg: rgba(245, 158, 11, 0.12);
   --status-pending-text: #fbbf24;
-  --status-pending-border: rgba(245, 158, 11, 0.25);
+  --status-pending-border: rgba(245, 158, 11, 0.3);
 
   --status-progress-bg: rgba(59, 130, 246, 0.12);
   --status-progress-text: #60a5fa;
-  --status-progress-border: rgba(59, 130, 246, 0.25);
+  --status-progress-border: rgba(59, 130, 246, 0.3);
 
   --status-completed-bg: rgba(16, 185, 129, 0.12);
   --status-completed-text: #34d399;
-  --status-completed-border: rgba(16, 185, 129, 0.25);
+  --status-completed-border: rgba(16, 185, 129, 0.3);
 
   /* Priority Colors */
   --priority-low-bg: rgba(14, 165, 233, 0.12);
   --priority-low-text: #38bdf8;
-  --priority-low-border: rgba(14, 165, 233, 0.25);
+  --priority-low-border: rgba(14, 165, 233, 0.3);
 
   --priority-med-bg: rgba(249, 115, 22, 0.12);
   --priority-med-text: #fb923c;
-  --priority-med-border: rgba(249, 115, 22, 0.25);
+  --priority-med-border: rgba(249, 115, 22, 0.3);
 
   --priority-high-bg: rgba(239, 68, 68, 0.14);
   --priority-high-text: #f87171;
-  --priority-high-border: rgba(239, 68, 68, 0.3);
+  --priority-high-border: rgba(239, 68, 68, 0.35);
 
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-full: 9999px;
 
   --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
@@ -58,25 +58,48 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-main);
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
   background-attachment: fixed;
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Animations */
@@ -86,17 +109,27 @@ body {
 }
 
 @keyframes modalPop {
-  from { opacity: 0; transform: scale(0.96) translateY(12px); }
+  from { opacity: 0; transform: scale(0.95) translateY(12px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 @keyframes pulseGlow {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-fade {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Base Form & Input Styles */
@@ -109,17 +142,28 @@ input, textarea, select {
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   width: 100%;
 }
 
 input:focus, textarea:focus, select:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+  background-color: rgba(23, 33, 56, 0.95);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
 }
 
 select {
   cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 14px;
+  padding-right: 36px;
 }
 
 select option {
@@ -135,13 +179,19 @@ select option {
   gap: 8px;
   font-family: inherit;
   font-weight: 600;
-  font-size: 0.95rem;
-  padding: 10px 20px;
+  font-size: 0.92rem;
+  padding: 10px 18px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   border: 1px solid transparent;
   text-decoration: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-primary {
@@ -150,9 +200,12 @@ select option {
   box-shadow: 0 4px 15px var(--primary-glow);
 }
 
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
+@media (hover: hover) {
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+    filter: brightness(1.05);
+  }
 }
 
 .btn-secondary {
@@ -161,9 +214,11 @@ select option {
   border-color: var(--border-subtle);
 }
 
-.btn-secondary:hover {
-  background-color: var(--bg-card-hover);
-  border-color: var(--border-hover);
+@media (hover: hover) {
+  .btn-secondary:hover {
+    background-color: var(--bg-card-hover);
+    border-color: var(--border-hover);
+  }
 }
 
 .btn-danger {
@@ -172,9 +227,11 @@ select option {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-.btn-danger:hover {
-  background-color: rgba(239, 68, 68, 0.25);
-  color: #ef4444;
+@media (hover: hover) {
+  .btn-danger:hover {
+    background-color: rgba(239, 68, 68, 0.25);
+    color: #ef4444;
+  }
 }
 
 .btn-sm {
@@ -194,6 +251,8 @@ select option {
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  min-width: 36px;
+  min-height: 36px;
 }
 
 .btn-icon:hover {
@@ -202,10 +261,15 @@ select option {
   border-color: var(--border-subtle);
 }
 
+.btn-icon:active {
+  transform: scale(0.92);
+}
+
 /* Glass Card */
 .glass-card {
   background: var(--bg-card);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
@@ -223,12 +287,14 @@ select option {
   text-transform: capitalize;
   letter-spacing: 0.3px;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
 
 .badge-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
+  display: inline-block;
 }
 
 /* Status Badges */
@@ -244,7 +310,10 @@ select option {
   color: var(--status-progress-text);
   border-color: var(--status-progress-border);
 }
-.badge-status-in-progress .badge-dot { background: var(--status-progress-text); animation: pulseGlow 2s infinite; }
+.badge-status-in-progress .badge-dot { 
+  background: var(--status-progress-text); 
+  animation: pulseGlow 2s infinite ease-in-out; 
+}
 
 .badge-status-completed {
   background: var(--status-completed-bg);

@@ -1,4 +1,3 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 
@@ -24,9 +23,9 @@ const Navbar = ({ user, onLogout }) => {
   };
 
   return (
-    <nav className="navbar">
-      <div className="nav-brand">
-        <div className="brand-icon">
+    <nav className="navbar" role="navigation" aria-label="Main navigation">
+      <div className="nav-brand" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
+        <div className="brand-icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
@@ -38,19 +37,26 @@ const Navbar = ({ user, onLogout }) => {
 
       <div className="nav-user">
         {user && (
-          <div className="user-pill">
-            <div className="user-avatar">{getInitials(user.username)}</div>
+          <div className="user-pill" title={`Logged in as ${user.username}`}>
+            <div className="user-avatar" aria-label="User avatar">
+              {getInitials(user.username)}
+            </div>
             <span className="user-name">{user.username}</span>
           </div>
         )}
 
-        <button onClick={handleLogout} className="btn btn-secondary btn-sm" title="Log out">
+        <button
+          onClick={handleLogout}
+          className="btn btn-secondary btn-sm"
+          title="Log out of your account"
+          aria-label="Logout"
+        >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
           </svg>
-          Logout
+          <span>Logout</span>
         </button>
       </div>
     </nav>

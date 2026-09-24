@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../api";
 import { useNavigate, Link } from "react-router-dom";
 
 function Logout() {
@@ -10,14 +10,9 @@ function Logout() {
 
     const handleLogout = async () => {
         try {
-            await axios.post(
-                "http://127.0.0.1:8000/api/logout/",
-                {},
-                {
-                    withCredentials: true
-                }
-            );
+            await api.post("/logout/", {});
 
+            localStorage.removeItem("token");
             localStorage.removeItem("user");
             setMessage("Logged out successfully. Redirecting to login...");
             setTimeout(() => {

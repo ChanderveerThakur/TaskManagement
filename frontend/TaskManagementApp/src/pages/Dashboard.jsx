@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
 import Navbar from "../components/Navbar";
@@ -7,7 +7,20 @@ import TaskModal from "../components/TaskModal";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const searchInputRef = useRef(null);
+
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -17,42 +30,62 @@ const Dashboard = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
+  const [viewMode, setViewMode] = useState("grid"); // "grid" or "list"
 
-  // Modals state
+  // Modals & Toast state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(null);
+    }, 3200);
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    const storedUser = localStorage.getItem("user");
-
     if (!token) {
       navigate("/login", { replace: true });
       return;
     }
 
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    let isMounted = true;
+    api.get("/tasks/")
+      .then((res) => {
+        if (isMounted) {
+          setTasks(res.data || []);
+        }
+      })
+      .catch((err) => {
+        console.error("fetchTasks error:", err);
+        if (isMounted && err.response?.status !== 401) {
+          setError("Unable to load tasks. Make sure your backend server is running.");
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
 
-    fetchTasks();
+    return () => {
+      isMounted = false;
+    };
   }, [navigate]);
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      const response = await api.get("/tasks/");
-      setTasks(response.data || []);
-    } catch (err) {
-      console.error("fetchTasks error:", err);
-      if (err.response?.status !== 401) {
-        setError("Unable to load tasks. Make sure your backend server is running.");
+  // Keyboard shortcut: Press "/" to focus search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const handleCreateOrUpdateTask = async (taskData) => {
     if (selectedTask) {
@@ -61,10 +94,12 @@ const Dashboard = () => {
       setTasks((prev) =>
         prev.map((t) => (t.id === selectedTask.id ? response.data : t))
       );
+      showToast("Task updated successfully!");
     } else {
       // Create
       const response = await api.post("/tasks/", taskData);
       setTasks((prev) => [response.data, ...prev]);
+      showToast("New task created!");
     }
   };
 
@@ -73,8 +108,9 @@ const Dashboard = () => {
     try {
       await api.delete(`/tasks/${taskId}/`);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    } catch (err) {
-      alert("Failed to delete task.");
+      showToast("Task deleted.", "info");
+    } catch {
+      showToast("Failed to delete task.", "error");
     }
   };
 
@@ -84,8 +120,9 @@ const Dashboard = () => {
       setTasks((prev) =>
         prev.map((t) => (t.id === taskId ? response.data : t))
       );
-    } catch (err) {
-      alert("Failed to update status.");
+      showToast(`Status updated to ${newStatus}`);
+    } catch {
+      showToast("Failed to update status.", "error");
     }
   };
 
@@ -95,17 +132,35 @@ const Dashboard = () => {
     const completed = tasks.filter((t) => t.status === "Completed").length;
     const inProgress = tasks.filter((t) => t.status === "In Progress").length;
     const pending = tasks.filter((t) => t.status === "Pending").length;
-    return { total, completed, inProgress, pending };
+
+    const highPriority = tasks.filter((t) => t.priority?.toLowerCase() === "high").length;
+    const medPriority = tasks.filter((t) => t.priority?.toLowerCase() === "medium").length;
+    const lowPriority = tasks.filter((t) => t.priority?.toLowerCase() === "low").length;
+
+    return { total, completed, inProgress, pending, highPriority, medPriority, lowPriority };
   }, [tasks]);
+
+  // Dynamic filter toggling from stat cards
+  const handleStatCardClick = (targetStatus) => {
+    if (targetStatus === "Total") {
+      setStatusFilter("All");
+    } else if (statusFilter === targetStatus) {
+      setStatusFilter("All");
+    } else {
+      setStatusFilter(targetStatus);
+    }
+  };
 
   // Filtered and sorted tasks
   const filteredTasks = useMemo(() => {
     return tasks
       .filter((task) => {
         // Search filter
+        const query = searchQuery.trim().toLowerCase();
         const matchesSearch =
-          task.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          task.description?.toLowerCase().includes(searchQuery.toLowerCase());
+          !query ||
+          task.title?.toLowerCase().includes(query) ||
+          task.description?.toLowerCase().includes(query);
 
         // Status filter
         const matchesStatus =
@@ -150,12 +205,12 @@ const Dashboard = () => {
       <Navbar user={user} onLogout={() => setUser(null)} />
 
       <main className="dashboard-container">
-        {/* Dashboard Header */}
-        <div className="dashboard-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "16px" }}>
+        {/* Header */}
+        <header className="dashboard-header">
           <div>
-            <h1 className="dashboard-title">My Tasks</h1>
+            <h1 className="dashboard-title">Task Workspace</h1>
             <p className="dashboard-subtitle">
-              Manage, organize, and prioritize your daily workflow
+              Plan, organize, and monitor your personal and team tasks
             </p>
           </div>
 
@@ -167,17 +222,22 @@ const Dashboard = () => {
             className="btn btn-primary"
             id="create-task-btn"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"></line>
               <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Create New Task
+            <span>Create New Task</span>
           </button>
-        </div>
+        </header>
 
-        {/* Stats Metrics Cards */}
-        <div className="stats-grid">
-          <div className="glass-card stat-card">
+        {/* Dynamic Interactive Stats Grid */}
+        <section className="stats-grid" aria-label="Task Statistics">
+          {/* Total Tasks */}
+          <div
+            className={`glass-card stat-card ${statusFilter === "All" ? "active" : ""}`}
+            onClick={() => handleStatCardClick("Total")}
+            title="Click to show all tasks"
+          >
             <div className="stat-info">
               <div className="stat-label">Total Tasks</div>
               <div className="stat-value">{stats.total}</div>
@@ -190,7 +250,12 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card stat-card">
+          {/* In Progress */}
+          <div
+            className={`glass-card stat-card ${statusFilter === "In Progress" ? "active" : ""}`}
+            onClick={() => handleStatCardClick("In Progress")}
+            title="Click to filter by In Progress"
+          >
             <div className="stat-info">
               <div className="stat-label">In Progress</div>
               <div className="stat-value" style={{ color: "#60a5fa" }}>{stats.inProgress}</div>
@@ -203,7 +268,12 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card stat-card">
+          {/* Pending */}
+          <div
+            className={`glass-card stat-card ${statusFilter === "Pending" ? "active" : ""}`}
+            onClick={() => handleStatCardClick("Pending")}
+            title="Click to filter by Pending"
+          >
             <div className="stat-info">
               <div className="stat-label">Pending</div>
               <div className="stat-value" style={{ color: "#fbbf24" }}>{stats.pending}</div>
@@ -217,7 +287,12 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="glass-card stat-card">
+          {/* Completed */}
+          <div
+            className={`glass-card stat-card ${statusFilter === "Completed" ? "active" : ""}`}
+            onClick={() => handleStatCardClick("Completed")}
+            title="Click to filter by Completed"
+          >
             <div className="stat-info">
               <div className="stat-label">Completed</div>
               <div className="stat-value" style={{ color: "#34d399" }}>{stats.completed}</div>
@@ -229,87 +304,142 @@ const Dashboard = () => {
               </svg>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Controls Panel (Search, Filter by Status, Filter by Priority, Sort) */}
-        <div className="glass-card controls-panel">
+        {/* Dynamic Controls Bar */}
+        <section className="glass-card controls-panel" aria-label="Filters and search">
           <div className="controls-top">
+            {/* Search Bar */}
             <div className="search-wrapper">
-              <span className="search-icon">
+              <span className="search-icon" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
               </span>
               <input
+                ref={searchInputRef}
                 type="text"
                 className="search-input"
-                placeholder="Search tasks by title or description..."
+                placeholder="Search tasks... (Press / to focus)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search tasks"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
                   className="search-clear"
-                  aria-label="Clear search"
+                  aria-label="Clear search query"
+                  title="Clear search"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <label htmlFor="sort-select" className="filter-label">Sort By:</label>
-              <select
-                id="sort-select"
-                className="sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="dueDate">Due Date</option>
-                <option value="priority">Priority (High to Low)</option>
-              </select>
+            {/* Sort & View Mode Switcher */}
+            <div className="controls-actions">
+              <div className="sort-group">
+                <select
+                  id="sort-select"
+                  className="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Sort tasks by"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="dueDate">Due Date</option>
+                  <option value="priority">Priority (High → Low)</option>
+                </select>
+              </div>
+
+              {/* View mode toggle (Grid vs List) */}
+              <div className="view-switcher" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  className={`view-btn ${viewMode === "grid" ? "active" : ""}`}
+                  onClick={() => setViewMode("grid")}
+                  title="Grid view"
+                  aria-label="Grid view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`view-btn ${viewMode === "list" ? "active" : ""}`}
+                  onClick={() => setViewMode("list")}
+                  title="List view"
+                  aria-label="List view"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Filter Rows: Status and Priority */}
+          {/* Filter Rows: Status and Priority Pills with dynamic item counts */}
           <div className="filters-row">
-            {/* Filter by Status */}
+            {/* Status Pills */}
             <div className="filter-group">
               <span className="filter-label">Status:</span>
-              <div className="filter-pills">
-                {["All", "Pending", "In Progress", "Completed"].map((status) => (
+              <div className="filter-pills" role="radiogroup">
+                {[
+                  { id: "All", count: stats.total },
+                  { id: "Pending", count: stats.pending },
+                  { id: "In Progress", count: stats.inProgress },
+                  { id: "Completed", count: stats.completed },
+                ].map((item) => (
                   <button
-                    key={status}
-                    className={`filter-pill ${statusFilter === status ? "active" : ""}`}
-                    onClick={() => setStatusFilter(status)}
+                    key={item.id}
+                    type="button"
+                    className={`filter-pill ${statusFilter === item.id ? "active" : ""}`}
+                    onClick={() => setStatusFilter(item.id)}
                   >
-                    {status}
+                    <span>{item.id}</span>
+                    <span className="filter-pill-count">{item.count}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Filter by Priority */}
-            <div className="filter-group" style={{ marginLeft: "auto" }}>
+            {/* Priority Pills */}
+            <div className="filter-group">
               <span className="filter-label">Priority:</span>
-              <div className="filter-pills">
-                {["All", "Low", "Medium", "High"].map((priority) => (
+              <div className="filter-pills" role="radiogroup">
+                {[
+                  { id: "All", count: stats.total },
+                  { id: "High", count: stats.highPriority },
+                  { id: "Medium", count: stats.medPriority },
+                  { id: "Low", count: stats.lowPriority },
+                ].map((item) => (
                   <button
-                    key={priority}
-                    className={`filter-pill ${priorityFilter === priority ? "active" : ""}`}
-                    onClick={() => setPriorityFilter(priority)}
+                    key={item.id}
+                    type="button"
+                    className={`filter-pill ${priorityFilter === item.id ? "active" : ""}`}
+                    onClick={() => setPriorityFilter(item.id)}
                   >
-                    {priority}
+                    <span>{item.id}</span>
+                    <span className="filter-pill-count">{item.count}</span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
-        </div>
+        </section>
 
         {/* Error Alert */}
         {error && (
@@ -324,23 +454,42 @@ const Dashboard = () => {
             Loading your tasks...
           </div>
         ) : filteredTasks.length > 0 ? (
-          <div className="tasks-grid">
-            {filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onEdit={(taskToEdit) => {
-                  setSelectedTask(taskToEdit);
-                  setIsModalOpen(true);
-                }}
-                onDelete={handleDeleteTask}
-                onStatusChange={handleStatusChange}
-              />
-            ))}
-          </div>
+          viewMode === "list" ? (
+            <div className="tasks-list">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  isListView={true}
+                  onEdit={(taskToEdit) => {
+                    setSelectedTask(taskToEdit);
+                    setIsModalOpen(true);
+                  }}
+                  onDelete={handleDeleteTask}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="tasks-grid">
+              {filteredTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  isListView={false}
+                  onEdit={(taskToEdit) => {
+                    setSelectedTask(taskToEdit);
+                    setIsModalOpen(true);
+                  }}
+                  onDelete={handleDeleteTask}
+                  onStatusChange={handleStatusChange}
+                />
+              ))}
+            </div>
+          )
         ) : (
           <div className="glass-card empty-state">
-            <div className="empty-icon">
+            <div className="empty-icon" aria-hidden="true">
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10"></circle>
                 <line x1="8" y1="12" x2="16" y2="12"></line>
@@ -349,8 +498,8 @@ const Dashboard = () => {
             <h3 className="empty-title">No tasks found</h3>
             <p className="empty-subtitle">
               {searchQuery || statusFilter !== "All" || priorityFilter !== "All"
-                ? "No tasks match your current filter criteria. Try resetting your filters."
-                : "You don't have any tasks created yet. Click 'Create New Task' to get started!"}
+                ? "No tasks match your current filters. Try changing or clearing your filters."
+                : "You don't have any tasks created yet. Click 'Create New Task' to begin organizing!"}
             </p>
             {searchQuery || statusFilter !== "All" || priorityFilter !== "All" ? (
               <button onClick={resetFilters} className="btn btn-secondary btn-sm">
@@ -371,8 +520,34 @@ const Dashboard = () => {
         )}
       </main>
 
+      {/* Floating Action Button (FAB) for Mobile Viewports */}
+      <button
+        className="fab-btn"
+        onClick={() => {
+          setSelectedTask(null);
+          setIsModalOpen(true);
+        }}
+        aria-label="Create new task"
+        title="Create new task"
+      >
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+
+      {/* Dynamic Toast Notifications */}
+      {toast && (
+        <div className="toast-container" role="status" aria-live="polite">
+          <div className={`toast toast-${toast.type}`}>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Task Modal (Create / Edit) */}
       <TaskModal
+        key={isModalOpen ? (selectedTask ? selectedTask.id : "new-task") : "closed-task"}
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleCreateOrUpdateTask}

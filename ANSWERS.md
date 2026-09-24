@@ -1,5 +1,4 @@
 
-# username 'chanu' and 123 password
 
 
 part C Database question : select * from user_table order by completed_task_count limit 5;
