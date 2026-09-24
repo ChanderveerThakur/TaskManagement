@@ -42,9 +42,14 @@ const Register = () => {
       // Automatically logged in! Go straight to dashboard
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(
-        err.response?.data?.message || err.response?.data?.detail || "Registration failed. Please check your details."
-      );
+      console.error("Registration request failed:", err);
+      if (!err.response) {
+        setError("Network error: Cannot reach the backend API. Please verify your backend service is running and VITE_API_BASE_URL is set.");
+      } else {
+        setError(
+          err.response?.data?.message || err.response?.data?.detail || "Registration failed. Please check your details."
+        );
+      }
     } finally {
       setLoading(false);
     }

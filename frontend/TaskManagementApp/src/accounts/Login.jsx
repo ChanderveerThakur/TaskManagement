@@ -39,9 +39,14 @@ const Login = () => {
 
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(
-        err.response?.data?.message || err.response?.data?.detail || "Invalid username or password."
-      );
+      console.error("Login request failed:", err);
+      if (!err.response) {
+        setError("Network error: Cannot reach the backend API. Please verify your backend service is running and VITE_API_BASE_URL is set.");
+      } else {
+        setError(
+          err.response?.data?.message || err.response?.data?.detail || "Invalid username or password."
+        );
+      }
     } finally {
       setLoading(false);
     }

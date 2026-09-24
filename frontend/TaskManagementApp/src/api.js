@@ -1,7 +1,23 @@
 import axios from "axios";
 
+const rawBaseURL = import.meta.env.VITE_API_BASE_URL || "";
+const resolveBaseURL = () => {
+  let url = (rawBaseURL || "").trim();
+  if (!url) return "http://127.0.0.1:8000/api";
+  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+    url = `https://${url}`;
+  }
+  if (!url.endsWith("/api") && !url.endsWith("/api/")) {
+    url = url.replace(/\/+$/, "") + "/api";
+  }
+  return url;
+};
+
+const baseURL = resolveBaseURL();
+console.log("[TaskManagement] Using API baseURL:", baseURL);
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api",
+  baseURL,
   withCredentials: true,
 });
 

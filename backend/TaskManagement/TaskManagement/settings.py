@@ -32,10 +32,10 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-lub)zf!jkts@7n0d!_#yx349xr
 DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 
 ALLOWED_HOSTS_ENV = os.getenv('ALLOWED_HOSTS', '')
-if ALLOWED_HOSTS_ENV:
+if ALLOWED_HOSTS_ENV and ALLOWED_HOSTS_ENV.strip() != '*':
     ALLOWED_HOSTS = [h.strip() for h in ALLOWED_HOSTS_ENV.split(',') if h.strip()]
 else:
-    ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver', '.onrender.com']
+    ALLOWED_HOSTS = ['*']
 
 # Render reverse proxy header
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -69,21 +69,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-extra_cors = os.getenv('CORS_ALLOWED_ORIGINS', '')
-if extra_cors:
-    for origin in extra_cors.split(','):
-        cleaned = origin.strip()
-        if cleaned and cleaned not in CORS_ALLOWED_ORIGINS:
-            CORS_ALLOWED_ORIGINS.append(cleaned)
-
-# Allow all onrender.com subdomains for frontend deployments
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https:\/\/.*\.onrender\.com$",
-]
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
